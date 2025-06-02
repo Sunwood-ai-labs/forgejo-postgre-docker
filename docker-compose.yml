@@ -1,0 +1,89 @@
+networks:
+  forgejo:
+    external: false
+
+services:
+  server:
+    image: codeberg.org/forgejo/forgejo:11
+    container_name: forgejo
+    env_file:
+      - .env
+    environment:
+      - USER_UID=${USER_UID:-1000}
+      - USER_GID=${USER_GID:-1000}
+      # PostgreSQL データベース設定
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=db:5432
+      - FORGEJO__database__NAME=${POSTGRES_DB:-forgejo}
+      - FORGEJO__database__USER=${POSTGRES_USER:-forgejo}
+      - FORGEJO__database__PASSWD=${POSTGRES_PASSWORD:-forgejo_password}
+      # サーバー設定（ベースURL等） - デフォルト値を192.168.0.131に修正
+      - FORGEJO__server__DOMAIN=${FORGEJO_DOMAIN:-192.168.0.131}
+      - FORGEJO__server__HTTP_PORT=${FORGEJO_HTTP_PORT:-3000}
+      - FORGEJO__server__ROOT_URL=${FORGEJO_ROOT_URL:-http://192.168.0.131:3000/}
+      - FORGEJO__server__DISABLE_SSH=${FORGEJO_DISABLE_SSH:-false}
+      - FORGEJO__server__SSH_PORT=${FORGEJO_SSH_PORT:-222}
+      # Actions設定
+      - FORGEJO__actions__ENABLED=true
+      - FORGEJO__actions__DEFAULT_ACTIONS_URL=https://github.com
+    restart: always
+    networks:
+      - forgejo
+    volumes:
+      - ./forgejo:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - '3000:3000'
+      - '222:22'
+    depends_on:
+      - db
+
+  runner:
+    image: code.forgejo.org/forgejo/runner:4.0.0
+    container_name: forgejo_runner
+    environment:
+      DOCKER_HOST: tcp://docker:2375
+    volumes:
+      - ./runner:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - forgejo
+    restart: always
+    depends_on:
+      - server
+    command: >
+      sh -c "
+      while ! nc -z server 3000; do sleep 1; done;
+      echo 'Forgejo is ready. Please register this runner manually.';
+      tail -f /dev/null
+      "
+
+  docker:
+    image: docker:dind
+    container_name: forgejo_docker
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    networks:
+      - forgejo
+    restart: always
+    command: ["dockerd", "--host=tcp://0.0.0.0:2375", "--tls=false"]
+
+  db:
+    image: postgres:16-alpine
+    container_name: forgejo_postgres
+    env_file:
+      - .env
+    environment:
+      # PostgreSQL 初期設定
+      - POSTGRES_DB=${POSTGRES_DB:-forgejo}
+      - POSTGRES_USER=${POSTGRES_USER:-forgejo}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-forgejo_password}
+      # 日本語環境対応（UTF-8エンコーディング）
+      - POSTGRES_INITDB_ARGS=${POSTGRES_INITDB_ARGS:---encoding=UTF-8 --locale=C}
+    restart: always
+    networks:
+      - forgejo
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
