@@ -17,12 +17,15 @@ services:
       - FORGEJO__database__NAME=${POSTGRES_DB:-forgejo}
       - FORGEJO__database__USER=${POSTGRES_USER:-forgejo}
       - FORGEJO__database__PASSWD=${POSTGRES_PASSWORD:-forgejo_password}
-      # サーバー設定（ベースURL等）
-      - FORGEJO__server__DOMAIN=${FORGEJO_DOMAIN:-localhost}
+      # サーバー設定（ベースURL等） - デフォルト値を192.168.0.131に修正
+      - FORGEJO__server__DOMAIN=${FORGEJO_DOMAIN:-192.168.0.131}
       - FORGEJO__server__HTTP_PORT=${FORGEJO_HTTP_PORT:-3000}
-      - FORGEJO__server__ROOT_URL=${FORGEJO_ROOT_URL:-http://localhost:3000/}
+      - FORGEJO__server__ROOT_URL=${FORGEJO_ROOT_URL:-http://192.168.0.131:3000/}
       - FORGEJO__server__DISABLE_SSH=${FORGEJO_DISABLE_SSH:-false}
       - FORGEJO__server__SSH_PORT=${FORGEJO_SSH_PORT:-222}
+      # Actions設定
+      - FORGEJO__actions__ENABLED=true
+      - FORGEJO__actions__DEFAULT_ACTIONS_URL=https://github.com
     restart: always
     networks:
       - forgejo
@@ -35,6 +38,107 @@ services:
       - '222:22'
     depends_on:
       - db
+
+  # forgejo-pages サービス（静的サイト）
+  pages:
+    image: ronmi/forgejo-pages:latest
+    container_name: forgejo_pages
+    env_file:
+      - .env
+    environment:
+      - PAGES_SERVER=${PAGES_SERVER:-http://server:3000}
+      - PAGES_TOKEN=${PAGES_TOKEN:-your-api-token-here}
+      - PAGES_BIND=${PAGES_BIND:-:8080}
+      - PAGES_BRANCH=${PAGES_BRANCH:-static-pages}
+    restart: always
+    networks:
+      - forgejo
+    ports:
+      - '8080:8080'
+    depends_on:
+      - server
+    command: ["serve"]
+
+  # forgejo-gradio-pages サービス（Gradioアプリ）
+  gradio-pages:
+    build:
+      context: ./gradio-pages-service
+      dockerfile: Dockerfile
+    container_name: forgejo_gradio_pages
+    env_file:
+      - .env
+    environment:
+      - FORGEJO_URL=${FORGEJO_URL:-http://server:3000}
+      - FORGEJO_TOKEN=${GRADIO_PAGES_TOKEN:-your-api-token-here}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - GRADIO_PORT_START=9100
+      - GRADIO_PORT_END=9150
+    restart: always
+    networks:
+      - forgejo
+    ports:
+      - '8081:8081'
+      - '9100-9150:9100-9150'  # ポート範囲を調整
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./gradio-pages-data:/data
+      - /tmp/gradio-apps:/tmp/gradio-apps
+    depends_on:
+      - server
+      - docker
+
+  runner:
+    image: code.forgejo.org/forgejo/runner:4.0.0
+    container_name: forgejo_runner
+    environment:
+      DOCKER_HOST: tcp://docker:2375
+      FORGEJO_INSTANCE_URL: http://server:3000
+      FORGEJO_RUNNER_REGISTRATION_TOKEN: ${FORGEJO_RUNNER_TOKEN:-please_set_runner_token}
+      FORGEJO_RUNNER_NAME: selfhosted
+      FORGEJO_RUNNER_LABELS: ubuntu-latest:docker://node:20-bullseye,ubuntu-22.04:docker://node:20-bullseye,selfhosted:host
+    volumes:
+      - ./runner:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - forgejo
+    restart: always
+    depends_on:
+      - server
+      - docker
+    command: >
+      sh -c "
+      echo 'Waiting for Forgejo to be ready...';
+      while ! nc -z server 3000; do sleep 2; done;
+      echo 'Forgejo is ready!';
+      
+      if [ ! -f /data/.runner ]; then
+        echo 'Registering runner...';
+        forgejo-runner register \
+          --instance \${FORGEJO_INSTANCE_URL} \
+          --token \${FORGEJO_RUNNER_REGISTRATION_TOKEN} \
+          --name \${FORGEJO_RUNNER_NAME} \
+          --labels \${FORGEJO_RUNNER_LABELS} \
+          --no-interactive || {
+            echo 'Registration failed. Please check your token.';
+            echo 'Get token from: http://192.168.0.131:3000/admin/actions/runners';
+            tail -f /dev/null;
+          };
+      fi;
+      
+      echo 'Starting runner daemon...';
+      forgejo-runner daemon --config /data/.runner;
+      "
+
+  docker:
+    image: docker:dind
+    container_name: forgejo_docker
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    networks:
+      - forgejo
+    restart: always
+    command: ["dockerd", "--host=tcp://0.0.0.0:2375", "--tls=false"]
 
   db:
     image: postgres:16-alpine

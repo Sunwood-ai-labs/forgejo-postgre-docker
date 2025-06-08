@@ -39,14 +39,13 @@ services:
     depends_on:
       - db
 
-  # forgejo-pages サービス追加
+  # forgejo-pages サービス（静的サイト）
   pages:
     image: ronmi/forgejo-pages:latest
     container_name: forgejo_pages
     env_file:
       - .env
     environment:
-      # Forgejo Pages 設定
       - PAGES_SERVER=${PAGES_SERVER:-http://server:3000}
       - PAGES_TOKEN=${PAGES_TOKEN:-your-api-token-here}
       - PAGES_BIND=${PAGES_BIND:-:8080}
@@ -60,11 +59,43 @@ services:
       - server
     command: ["serve"]
 
+  # forgejo-gradio-pages サービス（Gradioアプリ）
+  gradio-pages:
+    build:
+      context: ./gradio-pages-service
+      dockerfile: Dockerfile
+    container_name: forgejo_gradio_pages
+    env_file:
+      - .env
+    environment:
+      - FORGEJO_URL=${FORGEJO_URL:-http://server:3000}
+      - FORGEJO_TOKEN=${GRADIO_PAGES_TOKEN:-your-api-token-here}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - GRADIO_PORT_START=9100
+      - GRADIO_PORT_END=9150
+    restart: always
+    networks:
+      - forgejo
+    ports:
+      - '8081:8081'
+      # - '9100-9150:9100-9150'  # ポート範囲を調整
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./gradio-pages-data:/data
+      - /tmp/gradio-apps:/tmp/gradio-apps
+    depends_on:
+      - server
+      - docker
+
   runner:
     image: code.forgejo.org/forgejo/runner:4.0.0
     container_name: forgejo_runner
     environment:
       DOCKER_HOST: tcp://docker:2375
+      FORGEJO_INSTANCE_URL: http://server:3000
+      FORGEJO_RUNNER_REGISTRATION_TOKEN: ${FORGEJO_RUNNER_TOKEN:-please_set_runner_token}
+      FORGEJO_RUNNER_NAME: selfhosted
+      FORGEJO_RUNNER_LABELS: ubuntu-latest:docker://node:20-bullseye,ubuntu-22.04:docker://node:20-bullseye,selfhosted:host
     volumes:
       - ./runner:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -73,11 +104,29 @@ services:
     restart: always
     depends_on:
       - server
+      - docker
     command: >
       sh -c "
-      while ! nc -z server 3000; do sleep 1; done;
-      echo 'Forgejo is ready. Please register this runner manually.';
-      tail -f /dev/null
+      echo 'Waiting for Forgejo to be ready...';
+      while ! nc -z server 3000; do sleep 2; done;
+      echo 'Forgejo is ready!';
+      
+      if [ ! -f /data/.runner ]; then
+        echo 'Registering runner...';
+        forgejo-runner register \
+          --instance \${FORGEJO_INSTANCE_URL} \
+          --token \${FORGEJO_RUNNER_REGISTRATION_TOKEN} \
+          --name \${FORGEJO_RUNNER_NAME} \
+          --labels \${FORGEJO_RUNNER_LABELS} \
+          --no-interactive || {
+            echo 'Registration failed. Please check your token.';
+            echo 'Get token from: http://192.168.0.131:3000/admin/actions/runners';
+            tail -f /dev/null;
+          };
+      fi;
+      
+      echo 'Starting runner daemon...';
+      forgejo-runner daemon --config /data/.runner;
       "
 
   docker:
