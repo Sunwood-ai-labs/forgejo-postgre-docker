@@ -39,6 +39,27 @@ services:
     depends_on:
       - db
 
+  # forgejo-pages サービス追加
+  pages:
+    image: ronmi/forgejo-pages:latest
+    container_name: forgejo_pages
+    env_file:
+      - .env
+    environment:
+      # Forgejo Pages 設定
+      - PAGES_SERVER=${PAGES_SERVER:-http://server:3000}
+      - PAGES_TOKEN=${PAGES_TOKEN:-your-api-token-here}
+      - PAGES_BIND=${PAGES_BIND:-:8080}
+      - PAGES_BRANCH=${PAGES_BRANCH:-static-pages}
+    restart: always
+    networks:
+      - forgejo
+    ports:
+      - '8080:8080'
+    depends_on:
+      - server
+    command: ["serve"]
+
   runner:
     image: code.forgejo.org/forgejo/runner:4.0.0
     container_name: forgejo_runner
