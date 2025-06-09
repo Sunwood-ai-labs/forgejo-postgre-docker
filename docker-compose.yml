@@ -108,7 +108,10 @@ services:
     command: >
       sh -c "
       echo 'Waiting for Forgejo to be ready...';
-      while ! nc -z server 3000; do sleep 2; done;
+      while ! nc -z server 3000; do 
+        echo 'Waiting for server...';
+        sleep 5; 
+      done;
       echo 'Forgejo is ready!';
       
       if [ ! -f /data/.runner ]; then
@@ -121,13 +124,24 @@ services:
           --no-interactive || {
             echo 'Registration failed. Please check your token.';
             echo 'Get token from: http://192.168.0.131:3000/admin/actions/runners';
-            tail -f /dev/null;
+            echo 'Sleeping for 30 seconds before retry...';
+            sleep 30;
+            exit 1;
           };
+        echo 'Runner registered successfully!';
+      else
+        echo 'Runner already registered, skipping registration.';
       fi;
       
       echo 'Starting runner daemon...';
-      forgejo-runner daemon --config /data/.runner;
+      exec forgejo-runner daemon --config /data/.runner;
       "
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "forgejo-runner daemon"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   docker:
     image: docker:dind
