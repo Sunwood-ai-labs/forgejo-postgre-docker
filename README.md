@@ -65,6 +65,12 @@ docker-compose exec runner forgejo-runner register \
   --labels docker:docker://ghcr.io/catthehacker/ubuntu:act-22.04
 ```
 
+### Forgejo Runnerデーモンの実行
+
+```bash
+docker-compose exec runner forgejo-runner daemon
+```
+
 ---
 
 ## 📂 ディレクトリ構成
