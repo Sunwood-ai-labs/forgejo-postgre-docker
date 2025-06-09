@@ -195,7 +195,12 @@ cython_debug/
 
 forgejo/
 postgres/
-runner/
+
 his.txt
 gradio-pages-data
 .SourceSageAssets/
+
+# runner/
+!runner/.runner.example
+runner/.ash_history
+runner/.runner
