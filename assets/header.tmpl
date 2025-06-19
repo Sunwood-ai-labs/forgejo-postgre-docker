@@ -1,0 +1,113 @@
+<!-- カスタムテーマシステム（ナビゲーションバー背景を壊さない） -->
+<style>
+:root {
+  --custom-pink-primary: #ff69b4;
+  --custom-pink-secondary: #ffc0cb;
+  --custom-pink-bg: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%);
+  --custom-ocean-primary: #0077be;
+  --custom-ocean-secondary: #00a8cc;
+  --custom-ocean-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ピンクテーマ */
+html[data-forgejo-theme="custom-pink"] {
+  --color-primary: var(--custom-pink-primary);
+  --color-secondary: var(--custom-pink-secondary);
+}
+html[data-forgejo-theme="custom-pink"] body {
+  background: var(--custom-pink-bg) !important;
+  min-height: 100vh;
+}
+/* オーシャンテーマ */
+html[data-forgejo-theme="custom-ocean"] {
+  --color-primary: var(--custom-ocean-primary);
+  --color-secondary: var(--custom-ocean-secondary);
+}
+html[data-forgejo-theme="custom-ocean"] body {
+  background: var(--custom-ocean-bg) !important;
+  min-height: 100vh;
+}
+
+/* テーマ切り替えUI（ナビバー用） */
+#custom-theme-switcher {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: 16px;
+}
+#custom-theme-switcher button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: white;
+  font-size: 12px;
+  background: #666;
+  transition: all 0.2s;
+}
+#custom-theme-switcher .pink { background: var(--custom-pink-primary); }
+#custom-theme-switcher .ocean { background: var(--custom-ocean-primary); }
+#custom-theme-switcher .active { box-shadow: 0 0 0 2px white; }
+#custom-theme-switcher button:hover { transform: scale(1.08); }
+</style>
+<script>
+(function() {
+  'use strict';
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-forgejo-theme', theme);
+    localStorage.setItem('forgejo-custom-theme', theme);
+    updateActiveButton(theme);
+  }
+  function updateActiveButton(activeTheme) {
+    const buttons = document.querySelectorAll('#custom-theme-switcher button');
+    buttons.forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.theme === activeTheme) {
+        btn.classList.add('active');
+      }
+    });
+  }
+  function createThemeSwitcher() {
+    const switcher = document.createElement('div');
+    switcher.id = 'custom-theme-switcher';
+    switcher.title = 'テーマ切り替え';
+    const themes = [
+      { name: 'Default', value: '', class: 'default' },
+      { name: 'Pink', value: 'custom-pink', class: 'pink' },
+      { name: 'Ocean', value: 'custom-ocean', class: 'ocean' }
+    ];
+    themes.forEach(theme => {
+      const button = document.createElement('button');
+      button.textContent = theme.name;
+      button.className = theme.class;
+      button.dataset.theme = theme.value;
+      button.addEventListener('click', () => applyTheme(theme.value));
+      switcher.appendChild(button);
+    });
+    return switcher;
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const switcher = createThemeSwitcher();
+    // ナビゲーションバーを探して追加
+    let navbar = document.querySelector('.navbar');
+    if (!navbar) {
+      navbar = document.querySelector('.ui.menu');
+    }
+    if (navbar) {
+      navbar.appendChild(switcher);
+    } else {
+      // 見つからなければbody右上に
+      switcher.style.position = 'fixed';
+      switcher.style.top = '10px';
+      switcher.style.right = '10px';
+      switcher.style.zIndex = '1000';
+      switcher.style.background = 'rgba(0,0,0,0.8)';
+      switcher.style.padding = '10px';
+      switcher.style.borderRadius = '8px';
+      document.body.appendChild(switcher);
+    }
+    const savedTheme = localStorage.getItem('forgejo-custom-theme') || '';
+    applyTheme(savedTheme);
+  });
+})();
+</script>
