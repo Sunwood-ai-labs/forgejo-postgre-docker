@@ -198,6 +198,8 @@ postgres/
 
 his.txt
 gradio-pages-data
+!gradio-pages-data/
+!gradio-pages-data/apps_state.json
 .SourceSageAssets/
 
 # runner/
