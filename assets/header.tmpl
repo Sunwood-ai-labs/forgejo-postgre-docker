@@ -1,21 +1,53 @@
+<!-- Google Fonts埋め込み -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol&family=M+PLUS+Rounded+1c&display=swap" rel="stylesheet">
+
 <!-- カスタムテーマシステム（ナビゲーションバー背景を壊さない） -->
 <style>
+/* Google Fonts用クラス */
+.kaisei-decol-regular {
+  font-family: "Kaisei Decol", serif;
+  font-weight: 400;
+  font-style: normal;
+}
+.m-plus-rounded-1c-regular {
+  font-family: "M PLUS Rounded 1c", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+/* 全体のフォントをM PLUS Rounded 1cに */
+body, html {
+  font-family: "M PLUS Rounded 1c", "Kaisei Decol", "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif;
+}
+/* ナビゲーションバーのフォントと背景・ボーダー */
+.navbar, .ui.menu {
+  font-family: "Kaisei Decol", "M PLUS Rounded 1c", "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(255, 154, 158, 0.08);
+}
+
+
+/* ナビゲーションバー内のリンクやテキストもフォント統一 */
+.navbar a, .ui.menu a, .navbar *:not(.icon), .ui.menu *:not(.icon) {
+  font-family: "Kaisei Decol", "M PLUS Rounded 1c", "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif !important;
+}
 :root {
-  --custom-pink-primary: #ff69b4;
-  --custom-pink-secondary: #ffc0cb;
-  --custom-pink-bg: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%);
+  --custom-warm-primary: #ff9800;
+  --custom-warm-secondary: #ff3d00;
+  --custom-warm-bg: linear-gradient(90deg, #ff9800 0%, #ff3d00 100%);
   --custom-ocean-primary: #0077be;
   --custom-ocean-secondary: #00a8cc;
   --custom-ocean-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-/* ピンクテーマ */
-html[data-forgejo-theme="custom-pink"] {
-  --color-primary: var(--custom-pink-primary);
-  --color-secondary: var(--custom-pink-secondary);
+/* 暖色グラデーションテーマ */
+html[data-forgejo-theme="custom-warm"] {
+  --color-primary: var(--custom-warm-primary);
+  --color-secondary: var(--custom-warm-secondary);
 }
-html[data-forgejo-theme="custom-pink"] body {
-  background: var(--custom-pink-bg) !important;
+html[data-forgejo-theme="custom-warm"] body {
+  background: #fff !important;
   min-height: 100vh;
 }
 /* オーシャンテーマ */
@@ -26,6 +58,10 @@ html[data-forgejo-theme="custom-ocean"] {
 html[data-forgejo-theme="custom-ocean"] body {
   background: var(--custom-ocean-bg) !important;
   min-height: 100vh;
+}
+
+#navbar {
+  background: #fff;
 }
 
 /* テーマ切り替えUI（ナビバー用） */
@@ -45,7 +81,7 @@ html[data-forgejo-theme="custom-ocean"] body {
   background: #666;
   transition: all 0.2s;
 }
-#custom-theme-switcher .pink { background: var(--custom-pink-primary); }
+#custom-theme-switcher .warm { background: var(--custom-warm-primary); }
 #custom-theme-switcher .ocean { background: var(--custom-ocean-primary); }
 #custom-theme-switcher .active { box-shadow: 0 0 0 2px white; }
 #custom-theme-switcher button:hover { transform: scale(1.08); }
@@ -73,7 +109,7 @@ html[data-forgejo-theme="custom-ocean"] body {
     switcher.title = 'テーマ切り替え';
     const themes = [
       { name: 'Default', value: '', class: 'default' },
-      { name: 'Pink', value: 'custom-pink', class: 'pink' },
+      { name: 'Warm', value: 'custom-warm', class: 'warm' },
       { name: 'Ocean', value: 'custom-ocean', class: 'ocean' }
     ];
     themes.forEach(theme => {
