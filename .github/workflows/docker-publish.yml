@@ -1,0 +1,61 @@
+name: Build and Push Forgejo Images
+
+on:
+  push:
+    paths:
+      - 'gradio-pages-service/**'
+      - '.github/workflows/docker-publish.yml'
+      - 'docker-compose.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract repo name
+        id: repo
+        run: |
+          echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Build and push Docker image (forgejo-gradio-pages)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./gradio-pages-service
+          file: ./gradio-pages-service/Dockerfile
+          push: true
+          tags: ghcr.io/${{ env.REPO }}/forgejo-gradio-pages:latest
+
+      - name: Pull, retag, and push forgejo server image
+        run: |
+          docker pull codeberg.org/forgejo/forgejo:11
+          docker tag codeberg.org/forgejo/forgejo:11 ghcr.io/${{ env.REPO }}/forgejo:11
+          docker push ghcr.io/${{ env.REPO }}/forgejo:11
+
+      - name: Pull, retag, and push forgejo pages image
+        run: |
+          docker pull ronmi/forgejo-pages:latest
+          docker tag ronmi/forgejo-pages:latest ghcr.io/${{ env.REPO }}/forgejo-pages:latest
+          docker push ghcr.io/${{ env.REPO }}/forgejo-pages:latest
+
+      - name: Pull, retag, and push forgejo runner image
+        run: |
+          docker pull code.forgejo.org/forgejo/runner:4.0.0
+          docker tag code.forgejo.org/forgejo/runner:4.0.0 ghcr.io/${{ env.REPO }}/forgejo-runner:4.0.0
+          docker push ghcr.io/${{ env.REPO }}/forgejo-runner:4.0.0
