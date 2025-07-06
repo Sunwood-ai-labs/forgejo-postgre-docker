@@ -126,6 +126,22 @@ docker-compose exec runner forgejo-runner daemon
 ```
 
 ---
+### Forgejo管理ユーザーの追加
+
+Forgejoの管理ユーザーを追加したい場合は、以下のコマンドを実行してください。
+
+```bash
+docker exec -it forgejo forgejo admin user create \
+  --username "admin2" \
+  --password "YourSecurePassword123!" \
+  --email "admin@yourdomain.com" \
+  --admin
+```
+
+- `--username`、`--password`、`--email`は任意の値に変更してください。
+- `--admin`を付与すると管理者権限ユーザーとして作成されます。
+
+---
 
 ## 📂 ディレクトリ構成
 
