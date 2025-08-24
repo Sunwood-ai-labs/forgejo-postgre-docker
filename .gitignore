@@ -206,3 +206,4 @@ gradio-pages-data
 !runner/.runner.example
 runner/.ash_history
 runner/.runner
+.env copy
