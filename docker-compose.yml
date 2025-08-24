@@ -26,6 +26,7 @@ services:
       # Actions設定
       - FORGEJO__actions__ENABLED=true
       - FORGEJO__actions__DEFAULT_ACTIONS_URL=https://github.com
+      
     restart: always
     networks:
       - forgejo
@@ -39,53 +40,37 @@ services:
     depends_on:
       - db
 
-  # forgejo-pages サービス（静的サイト）
-  pages:
-    image: ronmi/forgejo-pages:latest
-    container_name: forgejo_pages
-    env_file:
-      - .env
-    environment:
-      - PAGES_SERVER=${PAGES_SERVER:-http://server:3000}
-      - PAGES_TOKEN=${PAGES_TOKEN:-your-api-token-here}
-      - PAGES_BIND=${PAGES_BIND:-:8080}
-      - PAGES_BRANCH=${PAGES_BRANCH:-static-pages}
+  # Nginx サービス（静的サイト配信）
+  nginx:
+    image: nginx:alpine
     restart: always
-    networks:
-      - forgejo
     ports:
-      - '8080:8080'
-    depends_on:
-      - server
-    command: ["serve"]
-
-  # forgejo-gradio-pages サービス（Gradioアプリ）
-  gradio-pages:
-    build:
-      context: ./gradio-pages-service
-      dockerfile: Dockerfile
-    container_name: forgejo_gradio_pages
-    env_file:
-      - .env
-    environment:
-      - FORGEJO_URL=${FORGEJO_URL:-http://server:3000}
-      - FORGEJO_TOKEN=${GRADIO_PAGES_TOKEN:-your-api-token-here}
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - GRADIO_PORT_START=9100
-      - GRADIO_PORT_END=9150
-    restart: always
-    networks:
-      - forgejo
-    ports:
-      - '8081:8081'
-      # - '9100-9150:9100-9150'  # ポート範囲を調整
+      - "8181:80" # 静的サイトを公開するポート
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./gradio-pages-data:/data
-      - /tmp/gradio-apps:/tmp/gradio-apps
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./pages-data:/usr/share/nginx/html:ro # 静的サイトのコンテンツ置き場
+    networks:
+      - forgejo
     depends_on:
       - server
-      - docker
+
+  # Webhook サービス（Gitリポジトリからのデプロイ）
+  webhook:
+    build: ./webhook  # Dockerfile のあるディレクトリ
+    restart: always
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    volumes:
+      - ./webhook/hooks.json:/config/hooks.json:ro  # パスを変更
+      - ./webhook/scripts:/etc/webhook/scripts
+      - ./pages-data:/var/www/html
+    networks:
+      - forgejo
+    command: -hooks /config/hooks.json -verbose  # パスを変更
+    depends_on:
+      - server
 
   runner:
     image: code.forgejo.org/forgejo/runner:4.0.0
