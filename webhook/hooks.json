@@ -1,0 +1,40 @@
+[
+  {
+    "id": "deploy-pages",
+    "execute-command": "/etc/webhook/scripts/deploy.sh",
+    "command-working-directory": "/var/www/html",
+    "response-message": "Deployment started successfully",
+    "pass-environment-to-command": [
+      {
+        "envname": "REPO_URL",
+        "source": "payload",
+        "name": "repository.clone_url"
+      },
+      {
+        "envname": "BRANCH_NAME",
+        "source": "payload",
+        "name": "ref"
+      },
+      {
+        "envname": "REPO_FULL_NAME",
+        "source": "payload",
+        "name": "repository.full_name"
+      },
+      {
+        "envname": "PUSHER_NAME",
+        "source": "payload",
+        "name": "pusher.username"
+      }
+    ],
+    "pass-arguments-to-command": [
+      {
+        "source": "payload",
+        "name": "repository.clone_url"
+      },
+      {
+        "source": "payload",
+        "name": "ref"
+      }
+    ]
+  }
+]
